@@ -27,12 +27,14 @@ jobs:
       uses: microsoft/setup-msbuild@v1.3.1
 
     # Build and Publish
-    - name: Build MVC and Publish
+    - name: Build & Publish Project
       run: |
-        msbuild WebAppForCICD.sln ^
-          /p:Configuration=Release ^
-          /p:WebPublishMethod=FileSystem ^
-          /p:PublishDir="${{ github.workspace }}\publish"
+        msbuild .\WebAppForCICD.sln `
+          /p:Configuration=Release `
+          /p:WebPublishMethod=Package `
+          /p:PackageAsSingleFile=true `
+          /p:SkipInvalidConfigurations=true `
+          /p:PackageLocation="${{ github.workspace }}\PackageOutput\WebAppForCICD.zip"
 
     # Check publish folder
     - name: Verify publish folder
