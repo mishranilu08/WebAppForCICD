@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using WebAppForCICD.Models;
-
 namespace WebAppForCICD.Controllers;
 
 public class HomeController : Controller
