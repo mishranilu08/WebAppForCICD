@@ -9,52 +9,67 @@ env:
   AZURE_WEBAPP_NAME: 'CICDDemoBymishranilu08'
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: windows-latest
+
+    steps:
+    # 1️⃣ Checkout code
+    - uses: actions/checkout@v4
+
+    # 2️⃣ Install NuGet
+    - name: Install NuGet
+      uses: nuget/setup-nuget@v2
+
+    # 3️⃣ Restore packages
+    - name: Restore NuGet Packages
+      run: nuget restore WebAppForCICD.sln
+
+    # 4️⃣ Add MSBuild
+    - name: Add MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    # 5️⃣ Build & publish to folder
+    - name: Build & Publish Folder
+      run: |
+        msbuild .\WebAppForCICD.sln `
+          /p:Configuration=Release `
+          /p:DeployOnBuild=true `
+          /p:WebPublishMethod=FileSystem `
+          /p:PublishUrl="${{ github.workspace }}\publish" `
+          /p:SkipInvalidConfigurations=true
+
+    # 6️⃣ Verify publish folder exists
+    - name: Verify publish folder
+      run: |
+        if (-Not (Test-Path "${{ github.workspace }}\publish")) {
+          Write-Error "Publish folder not found!"
+        }
+
+    # 7️⃣ Upload publish folder as artifact
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: published_app
+        path: ${{ github.workspace }}\publish
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
 
     steps:
     - uses: actions/checkout@v4
 
-    # Install NuGet
-    - name: Install NuGet
-      uses: nuget/setup-nuget@v2
-
-    # Restore packages
-    - name: Restore NuGet Packages
-      run: nuget restore WebAppForCICD.sln
-
-    # Add MSBuild
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
-    # Build & create ZIP
-    - name: Build & Package
-      run: |
-        msbuild .\WebAppForCICD.sln `
-          /p:Configuration=Release `
-          /p:WebPublishMethod=Package `
-          /p:PackageAsSingleFile=true `
-          /p:SkipInvalidConfigurations=true `
-          /p:PackageLocation="${{ github.workspace }}\WebAppForCICD.zip"
-
-    # Verify ZIP exists
-    - name: Verify ZIP
-      run: |
-        if (-Not (Test-Path "${{ github.workspace }}\WebAppForCICD.zip")) {
-          Write-Error "ZIP file not found!"
-        }
-
-    # Upload ZIP artifact
-    - name: Upload Build Artifact
-      uses: actions/upload-artifact@v4
+    # Download the publish folder
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
       with:
         name: published_app
-        path: ${{ github.workspace }}\WebAppForCICD.zip
+        path: ./publish
 
-    # Deploy to Azure
+    # Deploy to Azure Web App
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ${{ github.workspace }}\WebAppForCICD.zip
+        package: ./publish
