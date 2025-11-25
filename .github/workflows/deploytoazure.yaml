@@ -2,45 +2,45 @@ name: Deploy ASP.NET MVC App to Azure Web App
 
 on:
   push:
-    branches: 
-      - master      # Updated from main → master
+    branches:
+      - master   # Your branch
 
 env:
   AZURE_WEBAPP_NAME: 'WebAppForCICD'
-  PACKAGE_DIRECTORY: 'WebAppForCICD\obj\Release\Package\WebAppForCICD.zip'
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3  
+    - uses: actions/checkout@v3
 
     # Install NuGet
-    - name: Install Nuget
+    - name: Install NuGet
       uses: nuget/setup-nuget@v1
 
     - name: Restore NuGet packages
       run: nuget restore WebAppForCICD.sln
 
-    # Add MSBuild
+    # Install MSBuild
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.3.1
 
-    # Build + Publish as ZIP package
+    # Build & create package
     - name: Build and Publish
+      shell: pwsh
       run: |
-        msbuild WebAppForCICD.sln ^
-          /p:Configuration=Release ^
-          /p:WebPublishMethod=Package ^
-          /p:PackageAsSingleFile=true ^
-          /p:SkipInvalidConfigurations=true ^
-          /p:PackageLocation="${{ github.workspace }}\WebAppForCICD\obj\Release\Package\"
+        msbuild WebAppForCICD.sln `
+          /p:Configuration=Release `
+          /p:WebPublishMethod=Package `
+          /p:PackageAsSingleFile=true `
+          /p:SkipInvalidConfigurations=true `
+          /p:PackageLocation="${{ github.workspace }}\PackageOutput\"
 
-    # Deploy to Azure Web App
+    # Deploy ZIP to Azure
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v3
-      with: 
+      with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: '${{ github.workspace }}\${{ env.PACKAGE_DIRECTORY }}'
+        package: "${{ github.workspace }}\\PackageOutput\\WebAppForCICD.zip"
