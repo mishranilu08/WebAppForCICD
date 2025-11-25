@@ -16,8 +16,8 @@ jobs:
     - uses: actions/checkout@v4
 
     # Install NuGet
-    - name: Install Nuget
-    uses: nuget/setup-nuget@v2
+    - name: Install NuGet
+      uses: nuget/setup-nuget@v2
 
     - name: Restore NuGet packages
       run: nuget restore WebAppForCICD.sln
@@ -26,7 +26,7 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.3.1
 
-    # Publish build output
+    # Publish
     - name: Build & Publish
       run: |
         msbuild WebAppForCICD.sln `
@@ -44,17 +44,16 @@ jobs:
   deploy:
     runs-on: windows-latest
     needs: build
+
     steps:
     - uses: actions/checkout@v4
 
-    # Download artifact (v4)
     - name: Download Artifact
       uses: actions/download-artifact@v4
       with:
         name: published_app
         path: ./publish
 
-    # Deploy to Azure Web App
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v3
       with:
