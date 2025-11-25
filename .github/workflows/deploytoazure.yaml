@@ -1,35 +1,75 @@
-name: Deploy ASP.NET MVC App deploy to Azure Web App
+name: Deploy ASP.NET MVC App to Azure Web App
 
-on: [push]
+on:
+  push:
+    branches:
+      - master
 
 env:
-  AZURE_WEBAPP_NAME: 'WebAppForCICD'    # Set this to your application's name
-  AZURE_WEBAPP_PACKAGE_PATH: '.'      # Set this to the path to your web app project, defaults to the repository root
-  NUGET_VERSION: '5.3.x'           # Set this to the dot net version to use
+  AZURE_WEBAPP_NAME: 'CICDDemoBymishranilu08'
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: windows-latest
+
     steps:
+    # 1️⃣ Checkout code
+    - uses: actions/checkout@v4
 
-    - uses: actions/checkout@main  
-    
-    - name: Install Nuget
-      uses: nuget/setup-nuget@v1
+    # 2️⃣ Install NuGet
+    - name: Install NuGet
+      uses: nuget/setup-nuget@v2
+
+    # 3️⃣ Restore packages
+    - name: Restore NuGet Packages
+      run: nuget restore WebAppForCICD.sln
+
+    # 4️⃣ Add MSBuild
+    - name: Add MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    # 5️⃣ Build & publish to folder
+    - name: Build & Publish Folder
+      run: |
+        msbuild .\WebAppForCICD.sln `
+          /p:Configuration=Release `
+          /p:DeployOnBuild=true `
+          /p:WebPublishMethod=FileSystem `
+          /p:PublishUrl="${{ github.workspace }}\publish" `
+          /p:SkipInvalidConfigurations=true
+
+    # 6️⃣ Verify publish folder exists
+    - name: Verify publish folder
+      run: |
+        if (-Not (Test-Path "${{ github.workspace }}\publish")) {
+          Write-Error "Publish folder not found!"
+        }
+
+    # 7️⃣ Upload publish folder as artifact
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
       with:
-        nuget-version: ${{ env.NUGET_VERSION}}
-    - name: NuGet to restore dependencies as well as project-specific tools that are specified in the project file
-      run: nuget restore
-  
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+        name: published_app
+        path: ${{ github.workspace }}\publish
 
-    - name: Run MSBuild
-      run: msbuild .\WebAppForCICD.sln
-       
-    - name: 'Run Azure webapp deploy action using publish profile credentials'
+  deploy:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Download the publish folder
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: published_app
+        path: ./publish
+
+    # Deploy to Azure Web App
+    - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
-      with: 
-        app-name: ${{ env.AZURE_WEBAPP_NAME }} # Replace with your app name
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE  }} # Define secret variable in repository settings as per action documentation
-        package: '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/WebAppForCICD/'
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./publish
