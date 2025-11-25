@@ -22,17 +22,21 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore WebAppForCICD.sln
 
-    # Add MSBuild
+    # Setup MSBuild
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.3.1
 
-    # Publish
-    - name: Build & Publish
+    # Build and Publish
+    - name: Build MVC and Publish
       run: |
-        msbuild WebAppForCICD.sln `
-          /p:Configuration=Release `
-          /p:WebPublishMethod=FileSystem `
+        msbuild WebAppForCICD.sln ^
+          /p:Configuration=Release ^
+          /p:WebPublishMethod=FileSystem ^
           /p:PublishDir="${{ github.workspace }}\publish"
+
+    # Check publish folder
+    - name: Verify publish folder
+      run: dir "${{ github.workspace }}\publish"
 
     # Upload artifact (v4)
     - name: Upload Published Artifact
@@ -48,12 +52,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # Download artifact
     - name: Download Artifact
       uses: actions/download-artifact@v4
       with:
         name: published_app
         path: ./publish
 
+    # Deploy to Azure Web App
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v3
       with:
