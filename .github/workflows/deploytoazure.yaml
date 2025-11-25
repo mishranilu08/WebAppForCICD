@@ -1,35 +1,46 @@
-name: Deploy ASP.NET MVC App deploy to Azure Web App
+name: Deploy ASP.NET MVC App to Azure Web App
 
-on: [push]
+on:
+  push:
+    branches: 
+      - master      # Updated from main → master
 
 env:
-  AZURE_WEBAPP_NAME: 'WebAppForCICD'    # Set this to your application's name
-  AZURE_WEBAPP_PACKAGE_PATH: '.'      # Set this to the path to your web app project, defaults to the repository root
-  NUGET_VERSION: '5.3.x'           # Set this to the dot net version to use
+  AZURE_WEBAPP_NAME: 'WebAppForCICD'
+  PACKAGE_DIRECTORY: 'WebAppForCICD\obj\Release\Package\WebAppForCICD.zip'
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
-    steps:
 
-    - uses: actions/checkout@main  
-    
+    steps:
+    - uses: actions/checkout@v3  
+
+    # Install NuGet
     - name: Install Nuget
       uses: nuget/setup-nuget@v1
-      with:
-        nuget-version: ${{ env.NUGET_VERSION}}
-    - name: NuGet to restore dependencies as well as project-specific tools that are specified in the project file
-      run: nuget restore
-  
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
 
-    - name: Run MSBuild
-      run: msbuild .\WebAppForCICD.sln
-       
-    - name: 'Run Azure webapp deploy action using publish profile credentials'
+    - name: Restore NuGet packages
+      run: nuget restore WebAppForCICD.sln
+
+    # Add MSBuild
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.3.1
+
+    # Build + Publish as ZIP package
+    - name: Build and Publish
+      run: |
+        msbuild WebAppForCICD.sln ^
+          /p:Configuration=Release ^
+          /p:WebPublishMethod=Package ^
+          /p:PackageAsSingleFile=true ^
+          /p:SkipInvalidConfigurations=true ^
+          /p:PackageLocation="${{ github.workspace }}\WebAppForCICD\obj\Release\Package\"
+
+    # Deploy to Azure Web App
+    - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v3
       with: 
-        app-name: ${{ env.AZURE_WEBAPP_NAME }} # Replace with your app name
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE  }} # Define secret variable in repository settings as per action documentation
-        package: '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/WebAppForCICD/'
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: '${{ github.workspace }}\${{ env.PACKAGE_DIRECTORY }}'
