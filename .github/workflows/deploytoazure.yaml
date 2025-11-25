@@ -6,7 +6,7 @@ on:
       - master   # Your branch
 
 env:
-  AZURE_WEBAPP_NAME: 'WebAppForCICD'
+  AZURE_WEBAPP_NAME: 'CICDDemoBymishranilu08'
 
 jobs:
   build-and-deploy:
